@@ -39,8 +39,14 @@ DEFAULT_CONFIG = {
         "sweep_interval_minutes": 360,
     },
     "api": {
-        "host": "127.0.0.1",
+        # 默认对外监听；非本机请求由 api.auth 的 Basic Auth 拦截，未配置密码时将拒绝外部访问。
+        "host": "0.0.0.0",
         "port": 25618,
+        "auth": {
+            "enabled": True,
+            "username": "admin",
+            "password": "",
+        },
     },
     "push": {
         "enabled": True,

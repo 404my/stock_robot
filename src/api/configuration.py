@@ -9,6 +9,7 @@ import yaml
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from api.auth import is_trusted_client
 from api.runtime import RuntimeManager
 from utils.config import DEFAULT_CONFIG, Config, ConfigRevisionConflict
 
@@ -297,16 +298,6 @@ def _safe_reload_error(error: str | None, config: Config) -> str:
     return message
 
 
-def _is_loopback_client(request: Request) -> bool:
-    """完整凭据只交给本机页面，拒绝跨站脚本借浏览器读取。"""
-    if request.client is None or request.client.host not in {"127.0.0.1", "::1"}:
-        return False
-    if request.url.hostname not in {"127.0.0.1", "localhost", "::1", "testserver"}:
-        return False
-    origin = request.headers.get("origin")
-    return origin is None or origin == f"{request.url.scheme}://{request.url.netloc}"
-
-
 class _StrictLoader(yaml.SafeLoader):
     """拒绝重复键，避免编辑器可见内容与实际应用值不同。"""
 
@@ -436,8 +427,8 @@ def create_configuration_router(
         path = _CREDENTIAL_PATHS.get(key)
         if path is None:
             raise HTTPException(status_code=404, detail="凭据不存在")
-        if not _is_loopback_client(request):
-            raise HTTPException(status_code=403, detail="仅允许本机读取完整凭据")
+        if not is_trusted_client(request):
+            raise HTTPException(status_code=403, detail="仅允许本机或已登录的同源页面读取完整凭据")
         return JSONResponse({"value": _get_value(get_config().data, path)})
 
     @router.put("/api/v1/config")
@@ -491,15 +482,15 @@ def create_configuration_router(
 
     @router.get("/api/v1/config/file")
     async def get_file(request: Request):
-        if not _is_loopback_client(request):
-            raise HTTPException(403, detail="仅允许本机同源页面编辑完整配置")
+        if not is_trusted_client(request):
+            raise HTTPException(403, detail="仅允许本机或已登录的同源页面编辑完整配置")
         config = get_config()
         with config.write_lock():
             return JSONResponse({"source": config.source, "revision": config.revision})
 
     async def file_body(request: Request, *, save: bool):
-        if not _is_loopback_client(request):
-            raise HTTPException(403, detail="仅允许本机同源页面编辑完整配置")
+        if not is_trusted_client(request):
+            raise HTTPException(403, detail="仅允许本机或已登录的同源页面编辑完整配置")
         try:
             body = await request.json()
         except JSONDecodeError as exc:

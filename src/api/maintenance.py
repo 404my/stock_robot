@@ -6,7 +6,7 @@ import asyncio
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from api.configuration import _is_loopback_client
+from api.auth import is_trusted_client
 from maintenance.runner import MaintenanceRunner
 from utils.config import DEFAULT_CONFIG
 
@@ -31,8 +31,8 @@ def create_maintenance_router(runner: MaintenanceRunner | None = None) -> APIRou
     @router.post("/api/v1/maintenance/sweep")
     async def maintenance_sweep(request: Request):
         # 删除文件只允许本机页面或运维脚本触发，避免跨站请求借浏览器删报告。
-        if not _is_loopback_client(request):
-            raise HTTPException(status_code=403, detail="仅允许本机触发报告清理")
+        if not is_trusted_client(request):
+            raise HTTPException(status_code=403, detail="仅允许本机或已登录的同源页面触发报告清理")
         if runner is None:
             raise HTTPException(status_code=503, detail="维护任务未启动")
         return JSONResponse(await asyncio.to_thread(runner.run_once))

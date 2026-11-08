@@ -368,6 +368,11 @@ def create_app(
                   description="AI 驱动的股票分析研报助手 HTTP API",
                   lifespan=_maintenance_lifespan(maintenance))
 
+    # 访问认证先注册，CORS 后注册成为最外层，未认证响应也能带上跨域头。
+    from api.auth import install_basic_auth
+    from utils.config import Config
+
+    install_basic_auth(app, Config)
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                        allow_headers=["*"])
     app.include_router(create_configuration_router(runtime=runtime))

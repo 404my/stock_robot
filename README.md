@@ -66,6 +66,8 @@ python3 -m venv .venv
 
 启动后打开 <http://127.0.0.1:25618>，输入 `600519` 并提交，即可生成第一份报告。端口可用 `run --port` 指定。
 
+服务默认对外监听 `0.0.0.0`，外部访问需要 HTTP Basic Auth：在项目当前位置 `.stock_robot/config.yaml` 的 `api.auth` 设置 `username`/`password`，或使用环境变量 `STOCK_ROBOT_AUTH_USERNAME` / `STOCK_ROBOT_AUTH_PASSWORD`。本机 `127.0.0.1`/`::1` 请求（如 AstrBot 插件调用）免验证。
+
 不想配置模型时，也可以先用 CLI 查看数据与指标：
 
 ```powershell

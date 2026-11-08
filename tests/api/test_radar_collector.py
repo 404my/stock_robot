@@ -19,6 +19,7 @@ from utils.config import Config
 
 @pytest.fixture
 def collector_api(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)  # 访问认证层读取当前目录的默认配置（未设密码则外部失败关闭）
     config = Config(config_dir=tmp_path)
     monkeypatch.setattr("api.radar.Config", lambda: config)
     now = datetime.now(ZoneInfo("Asia/Shanghai"))
@@ -164,9 +165,9 @@ def test_startup_is_local_only_and_linux_read_only(collector_api, monkeypatch):
     fake.status = lambda: {"editable": False, "supported": True, "provider": "systemd", "enabled": False}
     monkeypatch.setattr("api.radar.CollectorStartup", lambda *_, **__: fake)
     assert client.put("/api/v1/radar/collector/startup", json={"enabled": True}).status_code == 403
-    remote = TestClient(create_app(core=None, push=False))
-    assert remote.put("/api/v1/radar/collector/startup", json={"enabled": True}).status_code == 403
-    assert remote.put("/api/v1/radar/collector/config", json={"enabled": False, "hour": 18, "minute": 30, "revision": remote.get("/api/v1/radar/collector/config").json()["revision"]}).status_code == 200
+    remote = TestClient(create_app(core=None, push=False), client=("192.0.2.25", 50124))
+    assert remote.put("/api/v1/radar/collector/startup", json={"enabled": True}).status_code == 503
+    assert client.put("/api/v1/radar/collector/config", json={"enabled": False, "hour": 18, "minute": 30, "revision": client.get("/api/v1/radar/collector/config").json()["revision"]}).status_code == 200
 
 
 def test_performance_reuses_covered_history_and_expands_only_earlier_range(collector_api, monkeypatch):

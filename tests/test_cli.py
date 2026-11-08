@@ -414,10 +414,10 @@ def test_run_builds_server_and_reports_ready_url(mocker):
 
     assert result.exit_code == 0
     assert "正在启动 HTTP 服务" not in result.output
-    assert "http://127.0.0.1:8000" in result.output
+    assert "Web 服务已监听 0.0.0.0:8000" in result.output
     mock_core.assert_called_once()
     server_args = mock_server.call_args.args
-    assert server_args[:3] == (mock_app.return_value, "127.0.0.1", 8000)
+    assert server_args[:3] == (mock_app.return_value, "0.0.0.0", 8000)
     assert server_args[3].name.startswith("runtime-")
 
 
@@ -438,14 +438,14 @@ def test_run_web_server_adds_runtime_log_handlers(mocker, tmp_path):
 
 
 def test_api_bind_resolution_uses_config_defaults(tmp_path):
-    """未传 host/port 时读配置 api.host/api.port（默认 127.0.0.1:25618）"""
+    """未传 host/port 时读配置 api.host/api.port（默认对外监听 0.0.0.0:25618）"""
     from stock_robot.cli import _resolve_api_bind
     from utils.config import Config
 
     cfg = Config(config_dir=tmp_path)
-    assert _resolve_api_bind(None, None, cfg) == ("127.0.0.1", 25618)
-    assert _resolve_api_bind("0.0.0.0", None, cfg) == ("0.0.0.0", 25618)
-    assert _resolve_api_bind(None, 9000, cfg) == ("127.0.0.1", 9000)
+    assert _resolve_api_bind(None, None, cfg) == ("0.0.0.0", 25618)
+    assert _resolve_api_bind("127.0.0.1", None, cfg) == ("127.0.0.1", 25618)
+    assert _resolve_api_bind(None, 9000, cfg) == ("0.0.0.0", 9000)
 
 
 def test_api_bind_resolution_uses_configured_values(tmp_path):

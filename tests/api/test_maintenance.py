@@ -1,4 +1,4 @@
-"""维护接口：只允许本机触发，且不依赖运行时核心。"""
+"""维护接口：只允许本机或已登录的同源页面触发，且不依赖运行时核心。"""
 from fastapi.testclient import TestClient
 
 from api.app import create_app
@@ -49,7 +49,8 @@ def test_status_uses_runner_snapshot():
     assert client.get("/api/v1/maintenance/status").json() == runner.payload
 
 
-def test_sweep_only_accepts_loopback_client():
+def test_sweep_only_accepts_trusted_client(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner = RunnerStub()
     app = create_app(push=False, maintenance=runner)
     local = TestClient(app, client=("127.0.0.1", 43210))
@@ -60,8 +61,9 @@ def test_sweep_only_accepts_loopback_client():
     assert response.json()["deleted"] == 2
     assert runner.calls == 1
 
+    # 远端未配置密码时由访问认证层直接拒绝，请求不会进入业务路由。
     remote = TestClient(app, client=("192.0.2.25", 43210))
-    assert remote.post("/api/v1/maintenance/sweep").status_code == 403
+    assert remote.post("/api/v1/maintenance/sweep").status_code == 503
     assert runner.calls == 1
 
 

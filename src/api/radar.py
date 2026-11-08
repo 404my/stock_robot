@@ -20,6 +20,7 @@ import pandas as pd
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
+from api.auth import is_trusted_client
 from api.report_library import ReportLibraryError, get_report_detail, list_reports
 from radar.backtest_cache import BacktestCacheError, derive_backtest_window
 from radar.benchmarks import (
@@ -314,9 +315,8 @@ def create_radar_router() -> APIRouter:
     @router.put("/collector/startup")
     @router.put("/collector/autostart")
     def update_collector_startup(body: CollectorAutostartRequest, request: Request):
-        client = request.client
-        if client is None or client.host not in {"127.0.0.1", "::1"}:
-            raise HTTPException(status_code=403, detail="仅允许本机页面管理采集启动项")
+        if not is_trusted_client(request):
+            raise HTTPException(status_code=403, detail="仅允许本机或已登录的同源页面管理采集启动项")
         adapter = CollectorStartup(runtime_root())
         if adapter.platform != "win32":
             raise HTTPException(status_code=403, detail="服务器启动设置由部署命令管理，网页只读")

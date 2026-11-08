@@ -857,10 +857,27 @@ def run(host, port):
         )
         progress.update(task_id, completed=3, description="正在启动 HTTP 服务")
 
-    web_url = f"http://{bind_host}:{bind_port}"
-    logger.info("%s API 启动于 %s", APP_NAME, web_url)
-    logger.info("Web 服务正在运行: %s", web_url)
-    console.print(f"[green]Web 服务正在运行: {web_url}[/green]")
+    if bind_host in {"0.0.0.0", "::"}:
+        logger.info("%s API 已对外监听于 %s:%s", APP_NAME, bind_host, bind_port)
+        console.print(f"[green]Web 服务已监听 {bind_host}:{bind_port}，请使用本机或服务器实际 IP 访问[/green]")
+    else:
+        web_url = f"http://{bind_host}:{bind_port}"
+        logger.info("%s API 启动于 %s", APP_NAME, web_url)
+        logger.info("Web 服务正在运行: %s", web_url)
+        console.print(f"[green]Web 服务正在运行: {web_url}[/green]")
+    from api.auth import auth_credentials
+
+    if bool(config.get("api.auth.enabled", True)):
+        _, auth_password = auth_credentials(config)
+        console.print("[cyan]访问验证已启用：本机 127.0.0.1/::1 免验证，外部访问需输入账号密码[/cyan]")
+        if not auth_password:
+            warning = "未配置 api.auth.password 或 STOCK_ROBOT_AUTH_PASSWORD，外部访问将被拒绝"
+            logger.warning(warning)
+            console.print(f"[yellow]警告：{warning}[/yellow]")
+    else:
+        warning = "访问验证已关闭（api.auth.enabled=false），外部访问无任何保护"
+        logger.warning(warning)
+        console.print(f"[yellow]警告：{warning}[/yellow]")
     _run_web_server(app, bind_host, bind_port, runtime_log_path)
 
 

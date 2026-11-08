@@ -48,6 +48,8 @@ def test_radar_collector_status_exposes_each_pool_and_schedule(tmp_path, monkeyp
 
 
 def test_radar_collector_autostart_is_local_only_and_returns_scheduler_state(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Config().set("api.auth.password", "s3cret-pass")  # 访问认证层读取当前目录配置
     config = Config(config_dir=tmp_path)
     monkeypatch.setattr("api.radar.Config", lambda: config)
     class FakeAutostart:
@@ -67,9 +69,9 @@ def test_radar_collector_autostart_is_local_only_and_returns_scheduler_state(tmp
 
     fake = FakeAutostart()
     monkeypatch.setattr("api.radar.CollectorStartup", lambda *_, **__: fake)
-    remote_client = TestClient(create_app(core=None, push=False))
+    remote_client = TestClient(create_app(core=None, push=False), client=("192.0.2.25", 50124))
     local_client = TestClient(create_app(core=None, push=False), client=("127.0.0.1", 50123))
-    assert remote_client.put("/api/v1/radar/collector/autostart", json={"enabled": True}).status_code == 403
+    assert remote_client.put("/api/v1/radar/collector/autostart", json={"enabled": True}).status_code == 401
     response = local_client.put("/api/v1/radar/collector/autostart", json={"enabled": True})
     assert response.status_code == 200
     assert response.json()["enabled"] is True

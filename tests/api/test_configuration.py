@@ -155,12 +155,13 @@ def test_get_credential_rejects_cross_site_origin_and_host(config_client):
     _, client = config_client
     path = "/api/v1/config/credentials/push.email.smtp_password"
     assert client.get(path, headers={"origin": "https://other.example"}).status_code == 403
-    assert client.get(path, headers={"host": "other.example"}).status_code == 403
+    # 非回环 Host 不再被视为本机请求，未配置密码时由认证层直接拒绝（失败关闭）
+    assert client.get(path, headers={"host": "other.example"}).status_code == 503
     assert client.get(path, headers={"origin": "http://testserver"}).status_code == 200
 
 
-def test_get_credential_rejects_remote_client_but_keeps_safe_config_public(tmp_path, monkeypatch):
-    """非回环来源不能读取完整凭据，但可读取已脱敏的普通配置。"""
+def test_remote_client_without_password_is_rejected(tmp_path, monkeypatch):
+    """对外监听且未配置密码时，远端连已脱敏配置也不放行。"""
     monkeypatch.chdir(tmp_path)
     config = Config()
     config.set("llm.api_key", "remote-secret")
@@ -169,12 +170,8 @@ def test_get_credential_rejects_remote_client_but_keeps_safe_config_public(tmp_p
     credential = client.get("/api/v1/config/credentials/llm.api_key")
     public_config = client.get("/api/v1/config")
 
-    assert credential.status_code == 403
-    assert public_config.status_code == 200
-    assert public_config.json()["config"]["llm"]["api_key"] == {
-        "configured": True,
-        "masked": "remot***ecret",
-    }
+    assert credential.status_code == 503
+    assert public_config.status_code == 503
 
 
 def test_update_deep_merges_only_submitted_values_and_persists_once(config_client, monkeypatch):

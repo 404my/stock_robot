@@ -59,7 +59,11 @@ data:
 
     def test_default_config_has_api_and_signal_sections(self, tmp_path):
         cfg = Config(config_dir=tmp_path)
-        assert cfg.data["api"] == {"host": "127.0.0.1", "port": 25618}
+        assert cfg.data["api"] == {
+            "host": "0.0.0.0",
+            "port": 25618,
+            "auth": {"enabled": True, "username": "admin", "password": ""},
+        }
         assert cfg.data["signal"]["thresholds"] == {"attack": 7, "watch": 4}
         assert set(cfg.data["signal"]["actions"]) == {"attack", "watch", "defend"}
         assert cfg.data["signal"]["actions"]["attack"] == {"action": "可考虑建仓/加仓", "position": "60%-80%"}
